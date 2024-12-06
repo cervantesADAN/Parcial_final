@@ -1,0 +1,322 @@
+GITHUB
+
+1.Instalación de Nagios en Docker:
+-Instalar Docker y Docker Compose:
+-sudo apt update && sudo apt upgrade -y
+-sudo apt install docker.io -y
+-sudo apt install docker-compose -y
+-sudo systemctl enable docker
+-sudo systemctl start docker
+.Crear una carpeta para el proyecto:
+-mkdir ~/nagios-docker
+-cd ~/nagios-docker
+.Definir un archivo docker-compose.yml para Nagios: Crea un archivo con el siguiente contenido:
+-nano docker-compose.yml
+contenido:
+version: '3'
+
+services:
+  nagios:
+    image: jasonrivers/nagios:latest
+    container_name: nagios
+    ports:
+      - "8080:80"
+    volumes:
+      - ./nagios/etc:/opt/nagios/etc
+      - ./nagios/var:/opt/nagios/var
+      - ./nagios/libexec:/opt/nagios/libexec
+    restart: unless-stopped
+.Crear carpetas para la configuración de Nagios:
+-mkdir -p nagios/etc nagios/var nagios/libexec
+
+.Iniciar Nagios con Docker Compose:
+-docker-compose up -d
+.Acceso a Nagios: Una vez el contenedor esté en ejecución, puedes acceder a Nagios desde tu navegador en http://<IP-de-tu-maquina-virtual>:8080.
+
+2.Servidor de bases de datos:
+-Instalar Docker y Docker Compose:
+-sudo apt update && sudo apt upgrade -y
+-sudo apt install docker.io -y
+-sudo apt install docker-compose -y
+-sudo systemctl enable docker
+-sudo systemctl start docker
+.Crear una carpeta para el proyecto:
+-mkdir ~/docker-db
+-cd ~/docker-db
+-nano docker-compose.yml
+contenido:
+version: '3.3'
+
+ services:
+  postgres:
+    image: postgres:latest
+    container_name: postgres_container
+    restart: always
+    environment:
+      POSTGRES_USER: usuario        # Nombre de usuario
+      POSTGRES_PASSWORD: 12345      # Contraseña del usuario
+      POSTGRES_DB: empresa          # Nombre de la base de datos
+    ports:
+      - "5432:5432"                 # Mapea el puerto 5432 del contenedor al host
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Volumen para la persistencia de datos
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com  # Correo predeterminado para login
+      PGADMIN_DEFAULT_PASSWORD: admin_password  # Contraseña predeterminada
+    ports:
+      - "5000:80"    # Mapea el puerto 8080 del host al puerto 80 de pgAdmin
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin  # Volumen para la persistencia de datos de pgAdmin
+
+volumes:
+  postgres_data:    # Volumen para los datos de PostgreSQL
+  pgadmin_data:     # Volumen para los datos de pgAdmin
+
+.Levantar el contenedor de base de datos
+-docker-compose up -d
+.Verifica que el contenedor esté corriendo:
+-docker ps
+.Accede a pgAdmin en tu navegador:
+-http://localhost:8080
+//Usa las credenciales predeterminadas (admin@example.com y admin_password) para iniciar sesión.
+.Una vez dentro de pgAdmin, agrega un nuevo servidor y conecta a tu base de datos PostgreSQL usando las credenciales de la base de datos (usuario y 12345).
+.Guarda el archivo docker-compose.yml con la configuración anterior.
+.Ejecuta el siguiente comando para levantar los contenedores:
+-docker-compose up -d
+.Accede a pgAdmin en el navegador:
+-http://localhost:5000
+
+
+3.servidor NGINX
+
+-Instalar Docker y Docker Compose:
+-sudo apt update && sudo apt upgrade -y
+-sudo apt install docker.io -y
+-sudo apt install docker-compose -y
+-sudo systemctl enable docker
+-sudo systemctl start docker
+. Descargar del aula las carpetas de configuración de Docker.
+. Cargar a través de SFTP la carpeta Docker en el Home del super-usuario.
+. Ubicarse dentro de la carpeta Docker que fue cargada por SMTP
+. Ubicarse en la carpeta nginx
+. Crear la imagen a través de un DockerFile
+	-docker build -t img_dk_nginx .
+.Creación y ejecución del contenedor
+-docker run -d --name cont_nginx -p 80:80 img_dk_nginx
+.Prueba de acceso
+-Accede a http://<IP del servidor> desde un navegador.
+
+
+
+configuración de monitoreo:
+. Acceder al contenedor de Nagios
+-docker exec -it nagios bash
+-cd /opt/nagios/etc/objects
+-nano mv-nagios.cfg
+contenido del archivo:
+define host {
+    use                     linux-server
+    host_name               mv-nagios
+    alias                   Nagios Server
+    address                 <IP-DE-MV-NAGIOS>
+    max_check_attempts      3
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+}
+
+define service {
+    use                     generic-service
+    host_name               mv-nagios
+    service_description     PING
+    check_command           check_ping!100.0,20%!500.0,60%
+}
+
+define service {
+    use                     generic-service
+    host_name               mv-nagios
+    service_description     HTTP
+    check_command           check_http
+}
+
+.Actualizar el archivo principal de Nagios
+	.Para que Nagios cargue el nuevo archivo de configuración, edita el archivo 		nagios.cfg:
+	-nano /opt/nagios/etc/nagios.cfg
+	.Busca la sección cfg_file y agrega la referencia al nuevo archivo:
+	-cfg_file=/opt/nagios/etc/objects/mv-nagios.cfg
+.Validar la configuración
+-nagios -v /opt/nagios/etc/nagios.cfg
+.Reiniciar Nagios
+-service nagios restart
+.Reinicia el contenedor de Nagios:
+-docker restart nagios
+-docker ps
+.Accede al contenedor de Nagios:
+-docker exec -it nagios bash
+.Dirígete al directorio de configuración:
+-cd /opt/nagios/etc/objects
+.Crea un archivo llamado mv-bd.cfg:
+-nano mv-bd.cfg
+contenido:
+define host {
+    use                     linux-server
+    host_name               mv-bd
+    alias                   Database Server
+    address                 <IP-DE-MV-BD>
+    max_check_attempts      3
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+}
+
+define service {
+    use                     generic-service
+    host_name               mv-bd
+    service_description     PING
+    check_command           check_ping!100.0,20%!500.0,60%
+}
+
+define service {
+    use                     generic-service
+    host_name               mv-bd
+    service_description     PostgreSQL Connection
+    check_command           check_nrpe!check_postgresql
+}
+
+
+.Actualizar el Archivo Principal de Nagios
+.Edita el archivo principal nagios.cfg para incluir el nuevo archivo:
+-nano /opt/nagios/etc/nagios.cfg
+.Agrega esta línea al final:
+-cfg_file=/opt/nagios/etc/objects/mv-bd.cfg
+.Validar y Reiniciar Nagios
+-nagios -v /opt/nagios/etc/nagios.cfg
+.Si no hay errores, reinicia Nagios:
+.Pasos para Configurar el Cliente de Nagios (NRPE) en mv-bd
+
+1.Instalar NRPE y los Plugins de Nagios en mv-bd
+.Conéctate a mv-bd y actualiza los paquetes:
+-sudo apt update
+.Instala el cliente NRPE y los plugins de Nagios:
+-Instala el cliente NRPE y los plugins de Nagios:
+2.Configurar NRPE en mv-bd
+.Edita el archivo de configuración de NRPE:
+-sudo nano /etc/nagios/nrpe.cfg
+.Realiza los siguientes cambios:
+	.Permitir conexiones desde el servidor Nagios:
+	.Busca la línea que comienza con allowed_hosts y agrega la IP del servidor Nagios 	(mv-nagios). Ejemplo:
+	-allowed_hosts=127.0.0.1,192.168.1.40
+	.Agregar comandos personalizados para monitoreo:
+	-command[check_mysql]=/usr/lib/nagios/plugins/check_tcp -H 127.0.0.1 -p 3306
+	-command[check_disk]=/usr/lib/nagios/plugins/check_disk -w 20% -c 10% -p /
+	-command[check_load]=/usr/lib/nagios/plugins/check_load -w 5,4,3 -c 10,6,4
+3. Reiniciar el Servicio NRPE
+.Reinicia el servicio para aplicar los cambios:
+-sudo systemctl restart nagios-nrpe-server
+.Verifica que esté corriendo:
+-sudo systemctl status nagios-nrpe-server
+4. Probar la Conexión Desde el Servidor Nagios
+.Desde el contenedor de Nagios, prueba conectarte a NRPE en mv-bd:
+
+	.Instala el cliente NRPE en el contenedor (si no está instalado):
+	-apt update
+	-apt install nagios-plugins -y
+	.Ejecuta una prueba para verificar que NRPE responde:
+	-/usr/lib/nagios/plugins/check_nrpe -H <IP-DE-MV-BD>
+
+5. Verificar y definir el comando en commands.cfg
+.Accede al contenedor de Nagios:
+-docker exec -it nagios bash
+.Edita el archivo de comandos de Nagios:
+-nano /opt/nagios/etc/objects/commands.cfg
+contenido que debe estar o agregar si no esta:
+
+# Comando para verificar carga de la CPU
+define command {
+    command_name    check_load
+    command_line    $USER1$/check_load -w 5,4,3 -c 10,6,4
+}
+
+# Comando para verificar el espacio en disco
+define command {
+    command_name    check_disk
+    command_line    $USER1$/check_disk -w 20% -c 10% -p /
+}
+
+# Comando para verificar la conexión a PostgreSQL
+define command {
+    command_name    check_postgresql
+    command_line    $USER1$/check_tcp -H $HOSTADDRESS$ -p 5432
+}
+define command {
+    command_name    check_https
+    command_line    $USER1$/check_http -H $HOSTADDRESS$ -S -p 443
+}
+
+.Validar la Configuración de Nagios
+	.Validar la configuración:
+	-nagios -v /opt/nagios/etc/nagios.cfg
+	.Si no hay errores, reinicia Nagios para que los cambios tomen efecto:
+	-pkill nagios
+	-nagios /opt/nagios/etc/nagios.cfg
+	.Verificar en la Interfaz Web de Nagios
+	Accede a la interfaz web de Nagios (http://<IP-de-Nagios>:8080) y verifica si los 	servicios ahora aparecen para mv-bd:
+
+.configurar los servicios de monitoreo para nginx
+.Ve al directorio de configuración de Nagios:
+-cd /opt/nagios/etc/objects/
+.Crea un archivo de configuración para el host remoto, por ejemplo: nginx_host.cfg.
+-sudo nano nginx_host.cfg
+.Agrega la definición del host:
+-define host {
+    use                     linux-server
+    host_name               nginx-server
+    alias                   Servidor NGINX
+    address                 <IP_DEL_HOST_REMOTO>
+    max_check_attempts      3
+    check_period            24x7
+    notification_interval   30
+    notification_period     24x7
+}
+define service {
+    use                     generic-service
+    host_name               nginx-server
+    service_description     HTTP Service
+    check_command           check_http
+}
+define service {
+    use                     generic-service
+    host_name               nginx-server
+    service_description     HTTPS Service
+    check_command           check_https
+}
+define service {
+    use                     generic-service
+    host_name               nginx-server
+    service_description     NGINX Status
+    check_command           check_nrpe!check_nginx
+}
+.Verificar y habilitar la configuración
+.Incluye el archivo nginx_host.cfg en la configuración principal de Nagios, si no está incluido:
+-sudo nano /opt/nagios/etc/nagios.cfg
+.Agrega la línea:
+-cfg_file=/opt/nagios/etc/objects/nginx_host.cfg
+.Verifica que la configuración sea válida:
+-sudo nagios -v /opt/nagios/etc/nagios.cfg
+.Si no hay errores, reinicia el servicio Nagios para aplicar los cambios:
+-sudo systemctl restart nagios
+
+
+
+
+
+
+
+
+
+
