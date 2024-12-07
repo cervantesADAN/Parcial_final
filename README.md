@@ -17,7 +17,8 @@ Este proyecto implementa una solución de monitoreo para servidores críticos us
 - Sistema operativo Linux (Ubuntu recomendado) con soporte para Docker.
 - Conexión a Internet para descargar imágenes Docker oficiales.
 - Permisos administrativos para ejecutar comandos `sudo`.
-
+## link del video de prueba:
+https://drive.google.com/file/d/1sC2daEkOoWQ8r3F5DXc8wGYEqgYkvKUd/view?usp=sharing
 ---
 
 
